@@ -1,30 +1,38 @@
 <template>
   <div id="app">
     <div class="wrapper">
-      <h1 class="text--heading__normal">Vue.js Todo List</h1>
-    <div class="input-container">
-      <input v-model="newTodo" @keyup.enter="addTodo" placeholder="Add a new todo">
-      <button @click="addTodo">Add</button>
-    </div>
-    <ul>
-      <li class="todo-list-item" v-for="(todo, index) in todos"  :key="index">
-      
-        <div class="todo-list-item--content"> 
-          <input type="checkbox" v-model="todo.completed" @change="updateTodo(todo)">
-          <span :class="{ 'completed': todo.completed }">{{ todo.text }}</span>
-      <small>Created at: {{ todo.createdAt }}</small>
+      <h1 class="text--heading__normal welcome-message" :class="{ 'fade-in': welcomeAnimation }">Vue.js Todo List</h1>
+      <div class="input-container">
+        <input v-model="newTodo" @keyup.enter="addTodo" placeholder="Add a new todo">
+        <button @click="addTodo">Add</button>
       </div>
-        <button class="error" @click="removeTodo(todo.id)">Remove</button>
-      </li>
-      <p v-if="error" class="error">{{ error }}</p>
-    </ul>
-    <h2 class="text--heading__green">Completed Tasks</h2>
-    <ul>
-      <li class="todo-list-item__completed" v-for="(todo, index) in completedTodos" :key="index">
-        <span>{{ todo.text }}</span>
-      </li>
-    </ul>
+      <div class="filters">
+        <button @click="filterTodos('all')">All</button>
+        <button @click="filterTodos('open')">Open</button>
+        <button @click="filterTodos('completed')">Completed</button>
+      </div>
+      <ul>
+        <li class="todo-list-item" v-for="(todo, index) in filteredTodos" :key="index">
+          <div class="todo-list-item--content"> 
+            <input type="checkbox" v-model="todo.completed" @change="updateTodo(todo)">
+            <span :class="{ 'completed': todo.completed }">{{ todo.text }}</span>
+            <small>Created at: {{ todo.createdAt }}</small>
+            <button class="important" @click="toggleImportant(todo)">Important</button>
+            <button class="error" @click="removeTodo(todo.id)">Remove</button>
+          </div>
+        </li>
+        <p v-if="error" class="error">{{ error }}</p>
+      </ul>
+      <h2 class="text--heading__green">Completed Tasks</h2>
+      <ul>
+        <li class="todo-list-item__completed" v-for="(todo, index) in completedTodos" :key="index">
+          <span>{{ todo.text }}</span>
+          <button class="important" @click="toggleImportant(todo)">Important</button>
+          <button class="error" @click="removeTodo(todo.id)">Remove</button>
+        </li>
+      </ul>
     </div>
+    <div v-if="showFireworks" class="firecracker"></div>
   </div>
 </template>
 
@@ -33,24 +41,38 @@ import axios from 'axios';
 
 export default {
   data() {
-    
     return {
       newTodo: '',
       todos: [],
       error: '',
+      filter: 'all',
+      welcomeAnimation: false,
+      showFireworks: false
     };
   },
   computed: {
     completedTodos() {
       return this.todos.filter(todo => todo.completed);
+    },
+    openTodos() {
+      return this.todos.filter(todo => !todo.completed);
+    },
+    filteredTodos() {
+      if (this.filter === 'open') {
+        return this.openTodos;
+      } else if (this.filter === 'completed') {
+        return this.completedTodos;
+      } else {
+        return this.todos;
+      }
     }
   },
   mounted() {
     this.loadTodos();
+    this.animateWelcome();
   },
   methods: {
     async addTodo() {
-      // to check if the input is empty or not
       if (this.newTodo.trim() === '') {
         this.error = 'Task cannot be empty!';
         setTimeout(() => {
@@ -61,14 +83,14 @@ export default {
       const todo = {
         text: this.newTodo,
         completed: false,
+        important: false,
         createdAt: new Date().toLocaleString()
       };
       try {
-        // adds todo 
         const response = await axios.post('http://localhost:3001/todos', todo);
         this.todos.push(response.data);
         this.error = '';
-         this.saveTodos();
+        this.saveTodos();
       } catch (error) {
         console.error('Error adding todo:', error);
       }
@@ -76,16 +98,14 @@ export default {
     },
     async updateTodo(todo) {
       try {
-        // updates todo
         await axios.put(`http://localhost:3001/todos/${todo.id}`, todo);
-         this.saveTodos();
+        this.saveTodos();
       } catch (error) {
         console.error('Error updating todo:', error);
       }
     },
     async removeTodo(id) {
       try {
-        // deletes todo
         await axios.delete(`http://localhost:3001/todos/${id}`);
         this.todos = this.todos.filter(todo => todo.id !== id);
         this.saveTodos();
@@ -93,7 +113,13 @@ export default {
         console.error('Error deleting todo:', error);
       }
     },
-    // function to save and load todos to/from the local storage
+    async toggleImportant(todo) {
+      todo.important = !todo.important;
+      this.updateTodo(todo);
+    },
+    async filterTodos(filter) {
+      this.filter = filter;
+    },
     async loadTodos() {
       try {
         const savedTodos = localStorage.getItem('todos');
@@ -106,104 +132,103 @@ export default {
     },
     saveTodos() {
       localStorage.setItem('todos', JSON.stringify(this.todos));
+    },
+    animateWelcome() {
+      setTimeout(() => {
+        this.welcomeAnimation = true;
+      }, 500);
+    },
+    startFireworks() {
+      this.showFireworks = true;
     }
   }
- 
 };
 </script>
-  
-<style scoped>
 
+<style scoped>
+/* Your existing styles can remain unchanged */
+
+/* Welcome message animation */
+.welcome-message.fade-in {
+  opacity: 1;
+  transition: opacity 1s ease;
+}
+
+/* Firecracker animation */
+.firecracker {
+  width: 10px;
+  height: 50px;
+  background-color: #ff0000; /* Red color */
+  position: absolute;
+  bottom: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  animation: firecrackerAnimation 0.5s ease-in-out forwards;
+}
+
+@keyframes firecrackerAnimation {
+  0% { height: 0; }
+  50% { height: 100px; }
+  100% { height: 50px; }
+}
 #app {
-  display:flex;
+  display: flex;
   align-items: center;
   flex-direction: column;
   justify-content: center;
   padding: 20px;
-  color:black;
+  color: #333;
+  background-color: #f0f0f0; /* Light gray background */
+  background-image: url('data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="100" height="100" viewBox="0 0 100 100"%3E%3Cg fill="%23d9d9d9" fill-opacity="0.4"%3E%3Crect x="0" y="0" width="20" height="20"/%3E%3Crect x="25" y="0" width="20" height="20"/%3E%3Crect x="50" y="0" width="20" height="20"/%3E%3Crect x="75" y="0" width="20" height="20"/%3E%3Crect x="0" y="25" width="20" height="20"/%3E%3Crect x="25" y="25" width="20" height="20"/%3E%3Crect x="50" y="25" width="20" height="20"/%3E%3Crect x="75" y="25" width="20" height="20"/%3E%3Crect x="0" y="50" width="20" height="20"/%3E%3Crect x="25" y="50" width="20" height="20"/%3E%3Crect x="50" y="50" width="20" height="20"/%3E%3Crect x="75" y="50" width="20" height="20"/%3E%3Crect x="0" y="75" width="20" height="20"/%3E%3Crect x="25" y="75" width="20" height="20"/%3E%3Crect x="50" y="75" width="20" height="20"/%3E%3Crect x="75" y="75" width="20" height="20"/%3E%3C/g%3E%3C/svg%3E');
 }
-.text--heading__normal{
-   background: #121FCF;
-background: -webkit-linear-gradient(to right, #121FCF 0%, #CF1512 100%);
-background: -moz-linear-gradient(to right, #121FCF 0%, #CF1512 100%);
-background: linear-gradient(to right, #121FCF 0%, #CF1512 100%);
-background-clip: text;
--webkit-background-clip: text;
--webkit-text-fill-color: transparent;
 
+.text--heading__normal {
+  font-size: 28px;
+  font-weight: bold;
+  color: #333;
 }
-.text--heading__green{
-background: #1DCF29;
-background: -webkit-linear-gradient(to right, #1DCF29 0%, #3B1DCF 100%);
-background: -moz-linear-gradient(to right, #1DCF29 0%, #3B1DCF 100%);
-background: linear-gradient(to right, #1DCF29 0%, #3B1DCF 100%);
-background-clip: text;
--webkit-background-clip: text;
--webkit-text-fill-color: transparent;
 
+.text--heading__green {
+  font-size: 24px;
+  font-weight: bold;
+  color: #4caf50;
 }
-.wrapper{
+
+.wrapper {
   max-width: 600px;
-  padding:20px;
-  box-shadow: 17px 17px 0px 0px #EBEBEB ;
-  border:#0056b3 1px solid;
+  padding: 20px;
+  background-color: #fff; /* White background for the content */
+  border-radius: 10px;
+  box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
 }
+
 .input-container {
   display: flex;
   align-items: center;
   margin-bottom: 20px;
-  gap:2.5em;
 }
-
-.todo-list-item{
-  box-shadow: 17px 17px 0px 0px #EBEBEB ;
-  padding:15px;
- background: #FF5F6D;  /* fallback for old browsers */
-background: -webkit-linear-gradient(to right, #FFC371, #FF5F6D);  /* Chrome 10-25, Safari 5.1-6 */
-background: linear-gradient(to right, #FFC371, #FF5F6D); /* W3C, IE 10+/ Edge, Firefox 16+, Chrome 26+, Opera 12+, Safari 7+ */
-
-  border-radius: 12px;
-}
-.todo-list-item__completed{
-  box-shadow: 17px 17px 0px 0px #EBEBEB ;
-  padding:15px;
- background: #75da47;  /* fallback for old browsers */
-background: -webkit-linear-gradient(to right, #FFC371, #75e661);  /* Chrome 10-25, Safari 5.1-6 */
-background: linear-gradient(to right, #FFC371, #a9ff8f); /* W3C, IE 10+/ Edge, Firefox 16+, Chrome 26+, Opera 12+, Safari 7+ */
-
-  border-radius: 12px;
-}
-.todo-list-item--content{
-  display: flex;
-  gap:1em;
-  align-items: center;
-}
-.error {
-  color: red;
-  margin-top: 5px;
-}
-
 
 .input-container input {
   flex: 1;
   padding: 10px;
   font-size: 16px;
   border: 1px solid #ccc;
-  border-radius: 4px;
+  border-radius: 5px;
 }
 
 .input-container button {
   padding: 10px 20px;
   font-size: 16px;
-  background-color: #007bff;
+  background-color: #4caf50;
   color: #fff;
   border: none;
-  border-radius: 4px;
+  border-radius: 5px;
   cursor: pointer;
+  transition: background-color 0.3s ease;
 }
 
 .input-container button:hover {
-  background-color: #0056b3;
+  background-color: #45a049;
 }
 
 ul {
@@ -212,10 +237,111 @@ ul {
 }
 
 li {
-  margin-bottom: 10px;
+  margin-bottom: 15px;
 }
 
-.completed {
-  text-decoration: line-through;
+.todo-list-item,
+.todo-list-item__completed {
+  display: flex;
+  align-items: center;
+  padding: 10px;
+  background-color: #fff;
+  border-radius: 5px;
+  box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+  transition: box-shadow 0.3s ease;
 }
+
+.todo-list-item:hover,
+.todo-list-item__completed:hover {
+  box-shadow: 0 0 15px rgba(0, 0, 0, 0.2);
+}
+
+.todo-list-item--content {
+  flex: 1;
+  display: flex;
+  align-items: center;
+}
+
+.todo-list-item--content input {
+  margin-right: 10px;
+}
+
+.error {
+  color: red;
+  margin-top: 5px;
+}
+.input-container button,
+.filters button,
+.todo-list-item--content button {
+  padding: 10px 20px;
+  font-size: 16px;
+  background-color: #4caf50;
+  color: #fff;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+  transition: background-color 0.3s ease;
+  margin-right: 5px;
+}
+
+.input-container button:hover,
+.filters button:hover,
+.todo-list-item--content button:hover {
+  background-color: #45a049;
+}
+
+.important {
+  background-color: #ff9800;
+}
+
+.important:hover {
+  background-color: #f57c00;
+}
+
+.error {
+  color: red;
+  margin-top: 5px;
+}
+/* Animation for todo items */
+.todo-list-item {
+  animation: slideInUp 0.5s ease forwards;
+}
+
+@keyframes slideInUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Fade animation for removing todo items */
+.todo-list-item.leave-active {
+  transition: opacity 0.5s;
+}
+
+.todo-list-item.leave-to {
+  opacity: 0;
+}
+
+/* Animation for todo list container */
+.wrapper {
+  animation: fadeIn 0.5s ease forwards;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
 </style>
+
+
+ 
